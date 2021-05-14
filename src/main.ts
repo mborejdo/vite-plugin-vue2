@@ -236,14 +236,14 @@ if(__VUE_HMR_RUNTIME__.compatible){
   if (!__VUE_HMR_RUNTIME__.isRecorded('${id}')) {
     __VUE_HMR_RUNTIME__.createRecord('${id}', component.options)
   }
-   import.meta.hot.accept((update) => {
+   import.meta.hot && import.meta.hot.accept((update) => {
       __VUE_HMR_RUNTIME__.${
         functional ? 'rerender' : 'reload'
       }('${id}', update.default)
    })
    ${
      templateRequest
-       ? `import.meta.hot.accept('${normalizeDevPath(
+       ? `import.meta.hot && import.meta.hot.accept('${normalizeDevPath(
            root,
            templateRequest
          )}', (update) => {

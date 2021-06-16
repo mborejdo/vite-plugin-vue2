@@ -20,6 +20,7 @@ export function createDescriptor(
     sourceRoot: root,
     needMap: true,
   })
+  // v2 hasn't generate template and customBlocks map
   // ensure the path is normalized in a way that is consistent inside
   // project (relative to root) and on different systems.
   const normalizedPath = slash(path.normalize(path.relative(root, filename)))

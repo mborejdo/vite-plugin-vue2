@@ -1,17 +1,22 @@
 import { SFCBlock } from '@vue/component-compiler-utils'
-import * as vueTemplateCompiler from 'vue-template-compiler'
+import * as defaultVueTemplateCompiler from 'vue-template-compiler'
 import { TransformPluginContext } from 'rollup'
 import { ResolvedOptions } from './index'
 import { createRollupError } from './utils/error'
 import { compileTemplate } from './template/compileTemplate'
+import hash from 'hash-sum'
 
 export function compileSFCTemplate(
   source: string,
   block: SFCBlock,
   filename: string,
-  { root, isProduction, vueTemplateOptions = {}, devServer }: ResolvedOptions,
+  {
+    isProduction,
+    vueTemplateOptions = {},
+    vueTemplateCompiler = defaultVueTemplateCompiler as any,
+  }: ResolvedOptions,
   pluginContext: TransformPluginContext
-): string {
+) {
   const { tips, errors, code } = compileTemplate({
     source,
     filename,
@@ -28,13 +33,13 @@ export function compileSFCTemplate(
     ...vueTemplateOptions,
     compilerOptions: {
       whitespace: 'condense',
-      ...(vueTemplateOptions.compilerOptions || {})
-    }
+      ...(vueTemplateOptions.compilerOptions || {}),
+    },
   })
 
   if (tips) {
     tips.forEach((warn) =>
-      pluginContext.error({
+      pluginContext.warn({
         id: filename,
         message: typeof warn === 'string' ? warn : warn.msg,
       })
@@ -42,17 +47,22 @@ export function compileSFCTemplate(
   }
 
   if (errors) {
+    const generateCodeFrame = (vueTemplateCompiler as any).generateCodeFrame
     errors.forEach((error) => {
       // 2.6 compiler outputs errors as objects with range
       if (
-        vueTemplateCompiler.generateCodeFrame &&
+        generateCodeFrame &&
         vueTemplateOptions.compilerOptions?.outputSourceRange
       ) {
-        const { msg, start, end } = error as vueTemplateCompiler.ErrorWithRange
+        const {
+          msg,
+          start,
+          end,
+        } = error as defaultVueTemplateCompiler.ErrorWithRange
         return pluginContext.error(
           createRollupError(filename, {
             message: msg,
-            frame: vueTemplateCompiler.generateCodeFrame(source, start, end),
+            frame: generateCodeFrame(source, start, end),
           })
         )
       } else {
@@ -63,8 +73,13 @@ export function compileSFCTemplate(
       }
     })
   }
+
   // rewrite require calls to import on build
-  return transformRequireToImport(code) + `\nexport { render, staticRenderFns }`
+  return {
+    code:
+      transformRequireToImport(code) + `\nexport { render, staticRenderFns }`,
+    map: null,
+  }
 }
 
 export function transformRequireToImport(code: string): string {
@@ -75,10 +90,8 @@ export function transformRequireToImport(code: string): string {
     /require\(("(?:[^"\\]|\\.)+"|'(?:[^'\\]|\\.)+')\)/g,
     (_, name): any => {
       if (!(name in imports)) {
-        imports[name] = `__$_require_${name
-          .replace(/[^a-z0-9]/g, '_')
-          .replace(/_{2,}/g, '_')
-          .replace(/^_|_$/g, '')}__`
+        // #81 compat unicode assets name
+        imports[name] = `__$_require_${hash(name)}__`
         strImports += 'import ' + imports[name] + ' from ' + name + '\n'
       }
 

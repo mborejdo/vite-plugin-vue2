@@ -8,7 +8,7 @@ const config = defineConfig({
     },
   },
   build: {
-    // sourcemap: true,
+    sourcemap: true,
     minify: false,
   },
   plugins: [
@@ -29,6 +29,7 @@ const config = defineConfig({
               }
               Object.assign(options.__customBlock, __customBlock);
             }`,
+            map: null,
           }
         }
       },
